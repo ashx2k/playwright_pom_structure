@@ -171,6 +171,7 @@ Configure these GitHub Secrets:
 - `SMTP_USERNAME`
 - `SMTP_PASSWORD`
 - `REPORT_EMAIL_TO_SELECTED` (single user email or comma-separated selected recipients)
+- `REPORT_EMAIL_TO`
 - `REPORT_EMAIL_FROM`
 
 Once configured, every non-PR workflow run emails the public Allure report URL to recipients.

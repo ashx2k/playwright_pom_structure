@@ -130,6 +130,7 @@ jobs:
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "Playwright Allure Report - Run ${{ github.run_number }}"
           to: ${{ secrets.REPORT_EMAIL_TO_SELECTED }}
+          to: ${{ secrets.REPORT_EMAIL_TO }}
           from: ${{ secrets.REPORT_EMAIL_FROM }}
           secure: true
           html_body: |
