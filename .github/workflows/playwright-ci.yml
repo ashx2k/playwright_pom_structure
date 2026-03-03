@@ -129,6 +129,7 @@ jobs:
           username: ${{ secrets.SMTP_USERNAME }}
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "Playwright Allure Report - Run ${{ github.run_number }}"
+          to: ${{ secrets.REPORT_EMAIL_TO_SELECTED }}
           to: ${{ secrets.REPORT_EMAIL_TO }}
           from: ${{ secrets.REPORT_EMAIL_FROM }}
           secure: true
@@ -139,3 +140,16 @@ jobs:
             <p><b>Run:</b> ${{ github.run_number }}</p>
             <p><b>Allure public URL:</b> <a href="${{ env.REPORT_URL }}">${{ env.REPORT_URL }}</a></p>
             <p>Artifacts (videos/screenshots/traces) are attached to the workflow run as downloadable artifacts.</p>
+
+
+      # - name: Send report URL to Slack (currently disabled)
+      #   if: always() && github.event_name != 'pull_request'
+      #   uses: slackapi/slack-github-action@v1.27.0
+      #   with:
+      #     payload: |
+      #       {
+      #         "text": "Playwright Allure report is ready: ${{ env.REPORT_URL }}"
+      #       }
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #     SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK

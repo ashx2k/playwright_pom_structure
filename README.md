@@ -170,6 +170,7 @@ Configure these GitHub Secrets:
 - `SMTP_PORT`
 - `SMTP_USERNAME`
 - `SMTP_PASSWORD`
+- `REPORT_EMAIL_TO_SELECTED` (single user email or comma-separated selected recipients)
 - `REPORT_EMAIL_TO`
 - `REPORT_EMAIL_FROM`
 
@@ -237,3 +238,17 @@ See `.env.example`:
 - `VIEWPORT_HEIGHT`
 
 Copy `.env.example` to `.env` and customize as needed.
+
+
+---
+
+## 14) Optional Slack Integration (Commented Out by Default)
+
+The workflow includes a **commented-out Slack notification step** that can post the generated GitHub Pages report URL.
+
+To enable it:
+1. Uncomment the Slack step in `.github/workflows/playwright-ci.yml`.
+2. Add repository secret: `SLACK_WEBHOOK_URL`.
+3. Commit and run the pipeline again.
+
+This is intentionally kept disabled as requested.
