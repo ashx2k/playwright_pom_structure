@@ -74,11 +74,19 @@ jobs:
               cd gh-pages
               git init
               git checkout -b gh-pages
+              git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
               cd -
             }
           fi
           mkdir -p gh-pages/reports
 
+      - name: Build hosted reports + clean old + create public URL
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          export REPORT_SOURCE_DIR="artifacts/allure-report"
+          export REPORTS_ROOT="gh-pages/reports"
+          export RUN_ID="$(date +'%Y-%m-%d')-run-${GITHUB_RUN_NUMBER}"
+          bash scripts/post-report-workflow.sh
       - name: Copy new Allure report to gh-pages
         if: always() && github.event_name != 'pull_request'
         run: |

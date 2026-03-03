@@ -36,6 +36,14 @@ This split is expandable because when UI changes, you mostly update page locator
 ├── scripts/
 │   └── cleanup-old-reports.sh               # Deletes gh-pages reports older than 30 days
 ├── src/
+│   ├── constants/
+│   │   └── TestConstants.js               # All framework constants in one class
+│   ├── pages/
+│   │   └── PlaywrightHomePage.js            # Locators only
+│   └── methods/
+│       └── PlaywrightHomePageMethods.js     # Actions + assertions only
+├── tests/
+│   └── playwright-home.spec.js              # Test flow using page + methods
 │   ├── pages/
 │   │   └── PlaywrightHomePage.ts            # Locators only
 │   └── methods/
@@ -50,6 +58,7 @@ This split is expandable because when UI changes, you mostly update page locator
 ├── .env.example                              # Runtime variables (base URL + viewport)
 ├── .gitignore
 ├── package.json
+├── playwright.config.js
 ├── playwright.config.ts
 └── tsconfig.json
 ```
@@ -58,6 +67,7 @@ This split is expandable because when UI changes, you mostly update page locator
 
 ## 3) How POM Is Implemented
 
+### `src/pages/PlaywrightHomePage.js`
 ### `src/pages/PlaywrightHomePage.ts`
 Contains:
 - `Page` reference
@@ -66,6 +76,7 @@ Contains:
 
 No behavior should be added here.
 
+### `src/methods/PlaywrightHomePageMethods.js`
 ### `src/methods/PlaywrightHomePageMethods.ts`
 Contains:
 - Navigation method (`goToHomePage`)
@@ -74,6 +85,11 @@ Contains:
 
 All interactions and assertions are isolated here for reuse.
 
+
+### `src/constants/TestConstants.js`
+Contains all reusable constant values in a single class (`TestConstants`) and is imported by config/page files so constants are managed from one place.
+
+### `tests/playwright-home.spec.js`
 ### `tests/playwright-home.spec.ts`
 Contains only scenario-level flow:
 - Instantiate page object
@@ -86,6 +102,12 @@ This keeps tests short and business-focused.
 
 ## 4) Configuration Handling (Viewport + Base URL)
 
+`playwright.config.js` reads environment values:
+- `BASE_URL`
+- `VIEWPORT_WIDTH`
+- `VIEWPORT_HEIGHT`
+- `LOCAL_REPORT_BASE_URL` (optional local-hosted report root URL)
+- SMTP values + `REPORT_EMAIL_TO_SELECTED` (optional; required only if you set `SEND_EMAIL=true` while running post-report flow)
 `playwright.config.ts` reads environment values:
 - `BASE_URL`
 - `VIEWPORT_WIDTH`
@@ -120,6 +142,7 @@ In GitHub Actions, these are uploaded as artifacts for debugging.
 ## 6) Allure Reporting
 
 Allure is enabled through:
+- `allure-playwright` reporter in `playwright.config.js`
 - `allure-playwright` reporter in `playwright.config.ts`
 - `allure-commandline` for report generation
 
@@ -207,6 +230,22 @@ Because responsibilities are separated, you can expand without rewriting existin
 
 ## 12) Local Setup
 
+For a full local flow (test -> Allure generate -> URL creation -> cleanup older than 30 days -> optional email), use:
+```bash
+npm run test:with-report-flow
+```
+
+You can also run just the post-report lifecycle on an existing Allure report:
+```bash
+npm run report:postrun
+```
+
+`report:postrun` uses `scripts/post-report-workflow.sh` and works in both CI and local environments.
+- In CI it targets `gh-pages/reports`.
+- Locally it targets `reports/` and prints a `file://...` URL (or `LOCAL_REPORT_BASE_URL` if provided).
+
+
+
 1. Install dependencies:
 ```bash
 npm install
@@ -236,6 +275,8 @@ See `.env.example`:
 - `BASE_URL`
 - `VIEWPORT_WIDTH`
 - `VIEWPORT_HEIGHT`
+- `LOCAL_REPORT_BASE_URL` (optional local-hosted report root URL)
+- SMTP values + `REPORT_EMAIL_TO_SELECTED` (optional; required only if you set `SEND_EMAIL=true` while running post-report flow)
 
 Copy `.env.example` to `.env` and customize as needed.
 
