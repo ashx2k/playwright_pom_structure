@@ -1,0 +1,141 @@
+name: Playwright Tests + Allure Publish
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  test-and-publish:
+    timeout-minutes: 45
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests (Allure enabled)
+        run: npm run test:ci
+
+      - name: Generate Allure report
+        if: always()
+        run: npx allure generate artifacts/allure-results --clean -o artifacts/allure-report
+
+      - name: Upload raw test artifacts (videos, screenshots, traces, reports)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            artifacts/test-results/
+            artifacts/playwright-report/
+            artifacts/allure-results/
+            artifacts/allure-report/
+          retention-days: 30
+
+      - name: Prepare date/version variables
+        if: always()
+        run: |
+          echo "RUN_FOLDER=$(date +'%Y-%m-%d')-run-${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "REPO_NAME=${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
+
+      - name: Checkout gh-pages branch
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+        continue-on-error: true
+
+      - name: Initialize gh-pages structure if missing
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          mkdir -p gh-pages
+          if [ ! -d gh-pages/.git ]; then
+            git clone --depth=1 --branch gh-pages "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" gh-pages || {
+              mkdir -p gh-pages/reports
+              cd gh-pages
+              git init
+              git checkout -b gh-pages
+              cd -
+            }
+          fi
+          mkdir -p gh-pages/reports
+
+      - name: Copy new Allure report to gh-pages
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          mkdir -p "gh-pages/reports/${RUN_FOLDER}"
+          cp -R artifacts/allure-report/. "gh-pages/reports/${RUN_FOLDER}/"
+
+      - name: Cleanup reports older than 30 days
+        if: always() && github.event_name != 'pull_request'
+        run: ./scripts/cleanup-old-reports.sh gh-pages/reports 30
+
+      - name: Build gh-pages index
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          {
+            echo "<html><head><title>Allure Reports</title></head><body>"
+            echo "<h1>Allure Reports - ${GITHUB_REPOSITORY}</h1><ul>"
+            for d in $(ls -1 gh-pages/reports | sort -r); do
+              echo "<li><a href=\"reports/${d}/index.html\">${d}</a></li>"
+            done
+            echo "</ul></body></html>"
+          } > gh-pages/index.html
+
+      - name: Publish to GitHub Pages (gh-pages branch)
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          cd gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Update Allure report for run ${GITHUB_RUN_NUMBER}" || echo "No changes to commit"
+          git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" 2>/dev/null || git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push origin gh-pages
+
+      - name: Build report public URL
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER}"
+          REPO="${GITHUB_REPOSITORY#*/}"
+          echo "REPORT_URL=https://${OWNER}.github.io/${REPO}/reports/${RUN_FOLDER}/index.html" >> $GITHUB_ENV
+          echo "Public report URL: https://${OWNER}.github.io/${REPO}/reports/${RUN_FOLDER}/index.html"
+
+      - name: Send report URL by email
+        if: always() && github.event_name != 'pull_request'
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_SERVER }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Playwright Allure Report - Run ${{ github.run_number }}"
+          to: ${{ secrets.REPORT_EMAIL_TO }}
+          from: ${{ secrets.REPORT_EMAIL_FROM }}
+          secure: true
+          html_body: |
+            <h3>Playwright execution completed</h3>
+            <p><b>Repository:</b> ${{ github.repository }}</p>
+            <p><b>Branch:</b> ${{ github.ref_name }}</p>
+            <p><b>Run:</b> ${{ github.run_number }}</p>
+            <p><b>Allure public URL:</b> <a href="${{ env.REPORT_URL }}">${{ env.REPORT_URL }}</a></p>
+            <p>Artifacts (videos/screenshots/traces) are attached to the workflow run as downloadable artifacts.</p>
