@@ -50,6 +50,12 @@ jobs:
             artifacts/allure-report/
           retention-days: 30
 
+      - name: Prepare date/version variables
+        if: always()
+        run: |
+          echo "RUN_FOLDER=$(date +'%Y-%m-%d')-run-${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "REPO_NAME=${GITHUB_REPOSITORY#*/}" >> $GITHUB_ENV
+
       - name: Checkout gh-pages branch
         if: always() && github.event_name != 'pull_request'
         uses: actions/checkout@v4
@@ -81,6 +87,27 @@ jobs:
           export REPORTS_ROOT="gh-pages/reports"
           export RUN_ID="$(date +'%Y-%m-%d')-run-${GITHUB_RUN_NUMBER}"
           bash scripts/post-report-workflow.sh
+      - name: Copy new Allure report to gh-pages
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          mkdir -p "gh-pages/reports/${RUN_FOLDER}"
+          cp -R artifacts/allure-report/. "gh-pages/reports/${RUN_FOLDER}/"
+
+      - name: Cleanup reports older than 30 days
+        if: always() && github.event_name != 'pull_request'
+        run: ./scripts/cleanup-old-reports.sh gh-pages/reports 30
+
+      - name: Build gh-pages index
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          {
+            echo "<html><head><title>Allure Reports</title></head><body>"
+            echo "<h1>Allure Reports - ${GITHUB_REPOSITORY}</h1><ul>"
+            for d in $(ls -1 gh-pages/reports | sort -r); do
+              echo "<li><a href=\"reports/${d}/index.html\">${d}</a></li>"
+            done
+            echo "</ul></body></html>"
+          } > gh-pages/index.html
 
       - name: Publish to GitHub Pages (gh-pages branch)
         if: always() && github.event_name != 'pull_request'
@@ -93,6 +120,14 @@ jobs:
           git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" 2>/dev/null || git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git push origin gh-pages
 
+      - name: Build report public URL
+        if: always() && github.event_name != 'pull_request'
+        run: |
+          OWNER="${GITHUB_REPOSITORY_OWNER}"
+          REPO="${GITHUB_REPOSITORY#*/}"
+          echo "REPORT_URL=https://${OWNER}.github.io/${REPO}/reports/${RUN_FOLDER}/index.html" >> $GITHUB_ENV
+          echo "Public report URL: https://${OWNER}.github.io/${REPO}/reports/${RUN_FOLDER}/index.html"
+
       - name: Send report URL by email
         if: always() && github.event_name != 'pull_request'
         uses: dawidd6/action-send-mail@v3
@@ -103,6 +138,7 @@ jobs:
           password: ${{ secrets.SMTP_PASSWORD }}
           subject: "Playwright Allure Report - Run ${{ github.run_number }}"
           to: ${{ secrets.REPORT_EMAIL_TO_SELECTED }}
+          to: ${{ secrets.REPORT_EMAIL_TO }}
           from: ${{ secrets.REPORT_EMAIL_FROM }}
           secure: true
           html_body: |
@@ -112,6 +148,7 @@ jobs:
             <p><b>Run:</b> ${{ github.run_number }}</p>
             <p><b>Allure public URL:</b> <a href="${{ env.REPORT_URL }}">${{ env.REPORT_URL }}</a></p>
             <p>Artifacts (videos/screenshots/traces) are attached to the workflow run as downloadable artifacts.</p>
+
 
       # - name: Send report URL to Slack (currently disabled)
       #   if: always() && github.event_name != 'pull_request'

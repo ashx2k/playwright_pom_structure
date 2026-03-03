@@ -44,6 +44,12 @@ This split is expandable because when UI changes, you mostly update page locator
 │       └── PlaywrightHomePageMethods.js     # Actions + assertions only
 ├── tests/
 │   └── playwright-home.spec.js              # Test flow using page + methods
+│   ├── pages/
+│   │   └── PlaywrightHomePage.ts            # Locators only
+│   └── methods/
+│       └── PlaywrightHomePageMethods.ts     # Actions + assertions only
+├── tests/
+│   └── playwright-home.spec.ts              # Test flow using page + methods
 ├── artifacts/                                # Generated at runtime (not committed)
 │   ├── test-results/                        # Playwright result data + logs/traces
 │   ├── playwright-report/                   # Playwright HTML report
@@ -53,6 +59,8 @@ This split is expandable because when UI changes, you mostly update page locator
 ├── .gitignore
 ├── package.json
 ├── playwright.config.js
+├── playwright.config.ts
+└── tsconfig.json
 ```
 
 ---
@@ -60,6 +68,7 @@ This split is expandable because when UI changes, you mostly update page locator
 ## 3) How POM Is Implemented
 
 ### `src/pages/PlaywrightHomePage.js`
+### `src/pages/PlaywrightHomePage.ts`
 Contains:
 - `Page` reference
 - Locators (`getStartedLink`, `docsHeader`)
@@ -68,6 +77,7 @@ Contains:
 No behavior should be added here.
 
 ### `src/methods/PlaywrightHomePageMethods.js`
+### `src/methods/PlaywrightHomePageMethods.ts`
 Contains:
 - Navigation method (`goToHomePage`)
 - Validation method (`verifyTitle`)
@@ -80,6 +90,7 @@ All interactions and assertions are isolated here for reuse.
 Contains all reusable constant values in a single class (`TestConstants`) and is imported by config/page files so constants are managed from one place.
 
 ### `tests/playwright-home.spec.js`
+### `tests/playwright-home.spec.ts`
 Contains only scenario-level flow:
 - Instantiate page object
 - Instantiate method object
@@ -97,6 +108,10 @@ This keeps tests short and business-focused.
 - `VIEWPORT_HEIGHT`
 - `LOCAL_REPORT_BASE_URL` (optional local-hosted report root URL)
 - SMTP values + `REPORT_EMAIL_TO_SELECTED` (optional; required only if you set `SEND_EMAIL=true` while running post-report flow)
+`playwright.config.ts` reads environment values:
+- `BASE_URL`
+- `VIEWPORT_WIDTH`
+- `VIEWPORT_HEIGHT`
 
 It applies them in `use.viewport` and again in project-level Chromium config so viewport is consistent for both local and CI runs.
 
@@ -128,6 +143,7 @@ In GitHub Actions, these are uploaded as artifacts for debugging.
 
 Allure is enabled through:
 - `allure-playwright` reporter in `playwright.config.js`
+- `allure-playwright` reporter in `playwright.config.ts`
 - `allure-commandline` for report generation
 
 Useful commands:
@@ -178,6 +194,7 @@ Configure these GitHub Secrets:
 - `SMTP_USERNAME`
 - `SMTP_PASSWORD`
 - `REPORT_EMAIL_TO_SELECTED` (single user email or comma-separated selected recipients)
+- `REPORT_EMAIL_TO`
 - `REPORT_EMAIL_FROM`
 
 Once configured, every non-PR workflow run emails the public Allure report URL to recipients.

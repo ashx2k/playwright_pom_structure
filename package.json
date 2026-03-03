@@ -14,10 +14,15 @@
     "clean:reports": "rm -rf test-results playwright-report allure-results allure-report artifacts reports",
     "report:postrun": "bash scripts/post-report-workflow.sh",
     "test:with-report-flow": "npm run test:ci && npm run report:allure:generate && npm run report:postrun"
+    "report:allure:generate": "allure generate allure-results --clean -o allure-report",
+    "report:allure:open": "allure open allure-report",
+    "clean:reports": "rm -rf test-results playwright-report allure-results allure-report artifacts"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.2",
     "allure-commandline": "^2.34.1",
     "allure-playwright": "^3.4.1"
+    "allure-playwright": "^3.4.1",
+    "typescript": "^5.9.2"
   }
 }
